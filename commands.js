@@ -36,8 +36,12 @@ const playCmd = {
     }
 
     await interaction.deferReply();
-    const query = interaction.options.getString("query");
+    const query = interaction.options.getString("query")?.trim();
     let queue = client.queues.get(interaction.guildId);
+
+    if (!query) {
+      return interaction.editReply({ embeds: [errorEmbed("Please provide a song name, URL, or search term.")] });
+    }
 
     if (!queue) {
       queue = new MusicQueue();
@@ -429,6 +433,7 @@ function makeSong(sp, source, user) {
 async function searchAcrossSources(query, requestedBy) {
   const sourceMap = [
     { type: "yt", source: "yt_search" },
+    { type: "yt", source: "youtube" },
     { type: "sc", source: "soundcloud" },
     { type: "sp", source: "spotify" },
   ];
@@ -438,6 +443,7 @@ async function searchAcrossSources(query, requestedBy) {
       const results = await play.search(query, { limit: 1, source });
       if (!results?.length) continue;
       const v = results[0];
+      if (!v?.url) continue;
       return [
         {
           title: v.title ?? v.name ?? "Unknown title",
