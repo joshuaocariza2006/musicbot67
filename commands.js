@@ -114,21 +114,12 @@ const playCmd = {
           requestedBy: interaction.user,
         }));
 
-      // ── Search YouTube ──
+      // ── Search YouTube / SoundCloud / Spotify ──
       } else {
-        const results = await play.search(query, { limit: 1 });
-        if (!results.length) {
+        songs = await searchAcrossSources(query, interaction.user);
+        if (!songs.length) {
           return interaction.editReply({ embeds: [errorEmbed("No results found!")] });
         }
-        const v = results[0];
-        songs.push({
-          title: v.title,
-          url: v.url,
-          duration: v.durationRaw,
-          thumbnail: v.thumbnails?.[0]?.url,
-          source: "yt",
-          requestedBy: interaction.user,
-        });
       }
 
       if (!songs.length) {
@@ -433,6 +424,36 @@ function makeSong(sp, source, user) {
     source,
     requestedBy: user,
   };
+}
+
+async function searchAcrossSources(query, requestedBy) {
+  const sourceMap = [
+    { type: "yt", source: "yt_search" },
+    { type: "sc", source: "soundcloud" },
+    { type: "sp", source: "spotify" },
+  ];
+
+  for (const { type, source } of sourceMap) {
+    try {
+      const results = await play.search(query, { limit: 1, source });
+      if (!results?.length) continue;
+      const v = results[0];
+      return [
+        {
+          title: v.title ?? v.name ?? "Unknown title",
+          url: v.url,
+          duration: v.durationRaw ?? formatDuration(v.durationInMs),
+          thumbnail: v.thumbnails?.[0]?.url ?? v.thumbnail?.url,
+          source: type,
+          requestedBy,
+        },
+      ];
+    } catch (err) {
+      console.debug(`Search failed for ${source}:`, err?.message ?? err);
+    }
+  }
+
+  return [];
 }
 
 module.exports = { commands, slashCommands };
